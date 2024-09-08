@@ -77,9 +77,20 @@ impl Input {
         true
     }
 
-    fn backspace_char(&mut self, idx: usize) {
-        let line = &mut self.lines[self.cursor_row];
-        line.remove(idx);
+    /// Backspaces at the current cursor position.
+    fn backspace_char(&mut self) {
+        if self.cursor_col == 0 {
+            if self.cursor_row == 0 {
+                // already at start of string
+                return;
+            } else {
+                todo!("removing lines");
+            }
+        }
+
+        let new_col = self.cursor_col.saturating_sub(1);
+        self.lines[self.cursor_row].remove(new_col);
+        self.cursor_col = new_col;
     }
 
     pub fn handle_event(&mut self, event: &Event) -> bool {
@@ -107,18 +118,9 @@ impl Input {
                         self.cursor_col = self.cursor_col.saturating_add(1).min(cur_line.len());
                         true
                     }
-                    KeyCode::Up | KeyCode::Down => unimplemented!(),
+                    KeyCode::Up | KeyCode::Down => todo!("switching lines"),
                     KeyCode::Backspace => {
-                        if self.cursor_col == 0 {
-                            if self.cursor_row == 0 {
-                                return false;
-                            } else {
-                                unimplemented!();
-                            }
-                        }
-                        let new_col = self.cursor_col.saturating_sub(1);
-                        self.backspace_char(new_col);
-                        self.cursor_col = new_col;
+                        self.backspace_char();
                         true
                     }
                     _ => false,
