@@ -2,7 +2,9 @@
 
 use std::{error::Error, io};
 
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent, MouseEventKind};
+use crossterm::event::{
+    self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind,
+};
 use ratatui::{
     layout::{Constraint, Layout, Position, Rect},
     style::Stylize,
@@ -17,7 +19,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     terminal.clear()?;
 
     let mut app = App {
-        user_input: "foobar".into(),
+        text_area: "foobar".into(),
     };
 
     app.run(terminal)?;
@@ -27,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-struct Input {
+struct TextArea {
     lines: Vec<String>,
     max_lines: usize,
 
@@ -39,7 +41,7 @@ struct Input {
     scroll_offset: usize,
 }
 
-impl Input {
+impl TextArea {
     pub fn new(mut lines: Vec<String>) -> Self {
         if lines.is_empty() {
             lines = vec!["".to_string()];
@@ -144,13 +146,13 @@ impl Input {
     }
 }
 
-impl From<&str> for Input {
+impl From<&str> for TextArea {
     fn from(value: &str) -> Self {
         Self::new(value.lines().map(String::from).collect())
     }
 }
 
-impl Widget for &Input {
+impl Widget for &TextArea {
     fn render(self, area: ratatui::prelude::Rect, buf: &mut ratatui::prelude::Buffer) {
         let mut row_lines = area.rows().zip(self.lines.iter().skip(self.scroll_offset));
 
@@ -169,7 +171,7 @@ impl Widget for &Input {
 }
 
 struct App {
-    user_input: Input,
+    text_area: TextArea,
 }
 
 impl App {
@@ -190,9 +192,9 @@ impl App {
 
         let inner_area = block.inner(input_area);
         frame.render_widget(block, input_area);
-        frame.render_widget(&self.user_input, inner_area);
+        frame.render_widget(&self.text_area, inner_area);
 
-        let cursor_pos = self.user_input.get_cursor_position(&inner_area);
+        let cursor_pos = self.text_area.get_cursor_position(&inner_area);
         frame.set_cursor_position(cursor_pos);
     }
 
@@ -201,7 +203,7 @@ impl App {
             terminal.draw(|frame| self.draw(frame))?;
 
             let event = event::read()?;
-            self.user_input.handle_event(&event);
+            self.text_area.handle_event(&event);
 
             if let event::Event::Key(key) = event {
                 if key.kind == KeyEventKind::Press && key.code == KeyCode::Esc {
