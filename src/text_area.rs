@@ -109,7 +109,40 @@ impl HandleEvent for TextArea {
                         self.cursor_col = self.cursor_col.saturating_add(1).min(cur_line.len());
                         HandleEventResult::Handled
                     }
-                    KeyCode::Up | KeyCode::Down => todo!("switching lines"),
+                    KeyCode::Up => {
+                        if self.cursor_row > 0 {
+                            self.cursor_row -= 1;
+
+                            if self.cursor_row == 0 {
+                                self.cursor_col = self.cursor_col.saturating_sub(self.prefix_len());
+                            }
+
+                            let min = if self.cursor_row == 0 {
+                                self.prefix_len()
+                            } else {
+                                0
+                            };
+                            let max = self.lines[self.cursor_row].len();
+
+                            self.cursor_col = self.cursor_col.clamp(min, max);
+                        }
+
+                        HandleEventResult::Handled
+                    }
+                    KeyCode::Down => {
+                        if self.cursor_row == 0 {
+                            self.cursor_col += self.prefix_len();
+                        }
+
+                        if self.cursor_row + 1 < self.lines.len() {
+                            self.cursor_row += 1;
+                        }
+
+                        self.cursor_col =
+                            self.cursor_col.clamp(0, self.lines[self.cursor_row].len());
+
+                        HandleEventResult::Handled
+                    }
                     KeyCode::Backspace => {
                         self.backspace_char();
                         HandleEventResult::Handled
