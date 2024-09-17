@@ -46,7 +46,7 @@
             };
           };
 
-          devShells.default = pkgs.mkShell { buildInputs = [ rust ]; };
+          devShells.default = pkgs.mkShell { buildInputs = [ rust pkgs.bacon ]; };
 
           formatter = pkgs.nixfmt-rfc-style;
         };
