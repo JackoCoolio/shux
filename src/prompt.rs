@@ -1,11 +1,11 @@
 use std::ops::Deref;
 
 use bon::{bon, builder};
-use crossterm::event::Event;
+use crossterm::event::{Event, KeyEventKind};
 use ratatui::widgets::Widget;
 
 use crate::{
-    handler::HandleEvent,
+    handler::{HandleEvent, HandleEventResult},
     text_area::{TextArea, TextAreaBuilder},
 };
 
@@ -19,8 +19,10 @@ impl From<TextArea> for Prompt {
     }
 }
 
-enum PromptEvent {
+pub enum PromptEvent {
+    /// The user pressed the enter key in the prompt.
     Enter(String),
+    Bubble(<TextArea as HandleEvent>::Event),
 }
 
 impl Prompt {
@@ -30,8 +32,24 @@ impl Prompt {
 }
 
 impl HandleEvent for Prompt {
-    fn handle_event(&mut self, event: Event) -> crate::handler::HandleEventResult {
-        self.text_area.handle_event(event)
+    type Event = PromptEvent;
+
+    fn handle_event(&mut self, event: Event) -> crate::handler::HandleEventResult<Self::Event> {
+        match event {
+            Event::Key(key_event) if key_event.kind != KeyEventKind::Release => {
+                if key_event.code == crossterm::event::KeyCode::Enter {
+                    return HandleEventResult::Bubbled(PromptEvent::Enter(
+                        self.text_area.current_line().to_owned(),
+                    ));
+                }
+            }
+            _ => (),
+        }
+
+        match self.text_area.handle_event(event) {
+            HandleEventResult::Handled => HandleEventResult::Handled,
+            HandleEventResult::Bubbled(b) => HandleEventResult::Bubbled(PromptEvent::Bubble(b)),
+        }
     }
 }
 

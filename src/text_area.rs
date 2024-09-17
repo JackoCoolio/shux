@@ -27,8 +27,12 @@ pub struct TextArea {
 }
 
 impl TextArea {
-    fn get_current_line(&self) -> &str {
+    pub fn current_line(&self) -> &str {
         &self.lines[self.cursor_row]
+    }
+
+    pub fn lines(&self) -> &[String] {
+        &self.lines
     }
 
     fn insert_char(&mut self, char: char) -> bool {
@@ -85,7 +89,9 @@ impl TextArea {
 }
 
 impl HandleEvent for TextArea {
-    fn handle_event(&mut self, event: Event) -> HandleEventResult {
+    type Event = crossterm::event::Event;
+
+    fn handle_event(&mut self, event: Event) -> crate::handler::HandleEventResult<Self::Event> {
         match event {
             Event::Key(key_event) => {
                 if key_event.kind == KeyEventKind::Release {
@@ -106,7 +112,7 @@ impl HandleEvent for TextArea {
                         HandleEventResult::Handled
                     }
                     KeyCode::Right => {
-                        let cur_line = self.get_current_line();
+                        let cur_line = self.current_line();
                         self.cursor_col = self.cursor_col.saturating_add(1).min(cur_line.len());
                         HandleEventResult::Handled
                     }
@@ -153,7 +159,7 @@ impl HandleEvent for TextArea {
                             .max_lines
                             .is_some_and(|max_lines| self.lines.len() < max_lines)
                         {
-                            let (left, right) = self.get_current_line().split_at(self.cursor_col);
+                            let (left, right) = self.current_line().split_at(self.cursor_col);
 
                             let mut new_buf = Vec::new();
                             for i in 0..self.cursor_row {

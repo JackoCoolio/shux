@@ -1,12 +1,12 @@
 use crossterm::event::Event;
 
-pub enum HandleEventResult {
+pub enum HandleEventResult<E> {
     Handled,
-    Bubbled(Event),
+    Bubbled(E),
 }
 
-impl From<Option<Event>> for HandleEventResult {
-    fn from(value: Option<Event>) -> Self {
+impl<E> From<Option<E>> for HandleEventResult<E> {
+    fn from(value: Option<E>) -> Self {
         match value {
             Some(value) => Self::Bubbled(value),
             None => Self::Handled,
@@ -14,8 +14,8 @@ impl From<Option<Event>> for HandleEventResult {
     }
 }
 
-impl From<HandleEventResult> for Option<Event> {
-    fn from(value: HandleEventResult) -> Self {
+impl<E> From<HandleEventResult<E>> for Option<E> {
+    fn from(value: HandleEventResult<E>) -> Self {
         match value {
             HandleEventResult::Bubbled(value) => Some(value),
             HandleEventResult::Handled => None,
@@ -24,5 +24,6 @@ impl From<HandleEventResult> for Option<Event> {
 }
 
 pub trait HandleEvent {
-    fn handle_event(&mut self, event: Event) -> HandleEventResult;
+    type Event;
+    fn handle_event(&mut self, event: Event) -> HandleEventResult<Self::Event>;
 }

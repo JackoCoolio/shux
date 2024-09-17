@@ -6,7 +6,7 @@ use crossterm::event::{
     self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind,
 };
 use handler::{HandleEvent, HandleEventResult};
-use prompt::Prompt;
+use prompt::{Prompt, PromptEvent};
 use ratatui::{
     layout::{Constraint, Layout, Position, Rect},
     style::Stylize,
@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     terminal.clear()?;
 
     let mut app = App {
-        text_area: TextArea::builder().prefix("$ ".into()).max_lines(3).build(),
+        prompt: Prompt::new(TextArea::builder().prefix("$ ".into()).max_lines(3).build()),
     };
 
     app.run(terminal)?;
@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 struct App {
-    text_area: TextArea,
+    prompt: Prompt,
 }
 
 impl App {
@@ -58,9 +58,9 @@ impl App {
 
         let inner_area = block.inner(input_area);
         frame.render_widget(block, input_area);
-        frame.render_widget(&self.text_area, inner_area);
+        frame.render_widget(&self.prompt, inner_area);
 
-        let cursor_pos = self.text_area.get_rendered_cursor_position(&inner_area);
+        let cursor_pos = self.prompt.get_rendered_cursor_position(&inner_area);
         frame.set_cursor_position(cursor_pos);
     }
 
@@ -72,9 +72,19 @@ impl App {
             // wait for an event
             let event = event::read()?;
 
-            let HandleEventResult::Bubbled(event) = self.text_area.handle_event(event) else {
+            let HandleEventResult::Bubbled(event) = self.prompt.handle_event(event) else {
                 // prompt handled it
                 continue;
+            };
+
+            let event = match event {
+                PromptEvent::Enter(cmd) => {
+                    // this is really gross bc we're in raw mode. will refine later
+                    println!("cmd: {cmd}");
+
+                    continue;
+                }
+                PromptEvent::Bubble(event) => event,
             };
 
             if let event::Event::Key(key) = event {
