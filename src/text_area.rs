@@ -12,7 +12,8 @@ use crate::handler::{HandleEvent, HandleEventResult};
 pub struct TextArea {
     #[builder(default = vec!["".to_string()])]
     lines: Vec<String>,
-    max_lines: usize,
+
+    max_lines: Option<usize>,
 
     prefix: Option<String>,
 
@@ -148,24 +149,29 @@ impl HandleEvent for TextArea {
                         HandleEventResult::Handled
                     }
                     KeyCode::Enter => {
-                        let (left, right) = self.get_current_line().split_at(self.cursor_col);
+                        if self
+                            .max_lines
+                            .is_some_and(|max_lines| self.lines.len() < max_lines)
+                        {
+                            let (left, right) = self.get_current_line().split_at(self.cursor_col);
 
-                        let mut new_buf = Vec::new();
-                        for i in 0..self.cursor_row {
-                            new_buf.push(self.lines[i].clone());
+                            let mut new_buf = Vec::new();
+                            for i in 0..self.cursor_row {
+                                new_buf.push(self.lines[i].clone());
+                            }
+
+                            new_buf.push(left.to_string());
+                            new_buf.push(right.to_string());
+
+                            for i in self.cursor_row + 1..self.lines.len() {
+                                new_buf.push(self.lines[i].clone());
+                            }
+
+                            self.cursor_row += 1;
+                            self.cursor_col = 0;
+
+                            self.lines = new_buf;
                         }
-
-                        new_buf.push(left.to_string());
-                        new_buf.push(right.to_string());
-
-                        for i in self.cursor_row + 1..self.lines.len() {
-                            new_buf.push(self.lines[i].clone());
-                        }
-
-                        self.cursor_row += 1;
-                        self.cursor_col = 0;
-
-                        self.lines = new_buf;
 
                         HandleEventResult::Handled
                     }
