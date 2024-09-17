@@ -44,7 +44,7 @@ impl App {
     fn draw(&self, frame: &mut Frame) {
         let layout = Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
-            .constraints([Constraint::Fill(1), Constraint::Length(5)])
+            .constraints([Constraint::Fill(1), Constraint::Length(3)])
             .split(frame.area());
 
         let input_area = layout[1];
