@@ -10,7 +10,7 @@ use prompt::{Prompt, PromptEvent};
 use ratatui::{
     layout::{Constraint, Layout, Position, Rect},
     style::Stylize,
-    text::{Line, Span},
+    text::{Line, Span, Text},
     widgets::{block::Title, Block, Paragraph, Widget},
     DefaultTerminal, Frame,
 };
@@ -27,6 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut app = App {
         prompt: Prompt::new(TextArea::builder().prefix("$ ".into()).max_lines(3).build()),
+        jobs: Vec::new(),
     };
 
     app.run(terminal)?;
@@ -38,6 +39,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 struct App {
     prompt: Prompt,
+    jobs: Vec<String>,
 }
 
 impl App {
@@ -46,6 +48,25 @@ impl App {
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([Constraint::Fill(1), Constraint::Length(3)])
             .split(frame.area());
+
+        let jobs_area = layout[0];
+
+        let jobs_areas = Layout::default()
+            .direction(ratatui::layout::Direction::Vertical)
+            .constraints(self.jobs.iter().map(|_job| Constraint::Fill(1)))
+            .split(jobs_area);
+        for (i, (job, job_area)) in self.jobs.iter().zip(jobs_areas.iter()).enumerate() {
+            let block = Block::bordered()
+                .border_type(ratatui::widgets::BorderType::Rounded)
+                .title(Title::from(format!("JOB {i}: '{}'", job.as_str().italic())))
+                .title_alignment(ratatui::layout::Alignment::Left);
+
+            let inner_area = block.inner(*job_area);
+            frame.render_widget(block, *job_area);
+
+            let line = Paragraph::new(Text::from(Span::from(job)));
+            frame.render_widget(line, inner_area);
+        }
 
         let input_area = layout[1];
 
@@ -79,8 +100,7 @@ impl App {
 
             let event = match event {
                 PromptEvent::Enter(cmd) => {
-                    // this is really gross bc we're in raw mode. will refine later
-                    println!("cmd: {cmd}");
+                    self.jobs.push(cmd);
 
                     continue;
                 }
