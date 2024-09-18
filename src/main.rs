@@ -37,9 +37,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+struct Job {
+    command: String,
+}
+
 struct App {
     prompt: Prompt,
-    jobs: Vec<String>,
+    jobs: Vec<Job>,
 }
 
 impl App {
@@ -55,16 +59,20 @@ impl App {
             .direction(ratatui::layout::Direction::Vertical)
             .constraints(self.jobs.iter().map(|_job| Constraint::Fill(1)))
             .split(jobs_area);
-        for (i, (job, job_area)) in self.jobs.iter().zip(jobs_areas.iter()).enumerate() {
+        for (i, (Job { command }, job_area)) in self.jobs.iter().zip(jobs_areas.iter()).enumerate()
+        {
             let block = Block::bordered()
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                .title(Title::from(format!("JOB {i}: '{}'", job.as_str().italic())))
+                .title(Title::from(format!(
+                    "JOB {i}: '{}'",
+                    command.as_str().italic()
+                )))
                 .title_alignment(ratatui::layout::Alignment::Left);
 
             let inner_area = block.inner(*job_area);
             frame.render_widget(block, *job_area);
 
-            let line = Paragraph::new(Text::from(Span::from(job)));
+            let line = Paragraph::new(Text::from(Span::from(command)));
             frame.render_widget(line, inner_area);
         }
 
@@ -99,8 +107,8 @@ impl App {
             };
 
             let event = match event {
-                PromptEvent::Enter(cmd) => {
-                    self.jobs.push(cmd);
+                PromptEvent::Enter(command) => {
+                    self.jobs.push(Job { command });
 
                     self.prompt.clear();
 
