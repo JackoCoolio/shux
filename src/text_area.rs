@@ -8,9 +8,13 @@ use ratatui::{
 
 use crate::handler::{HandleEvent, HandleEventResult};
 
+fn empty_lines() -> Vec<String> {
+    vec!["".to_string()]
+}
+
 #[derive(Builder)]
 pub struct TextArea {
-    #[builder(default = vec!["".to_string()])]
+    #[builder(default = empty_lines())]
     lines: Vec<String>,
 
     max_lines: Option<usize>,
@@ -33,6 +37,14 @@ impl TextArea {
 
     pub fn lines(&self) -> &[String] {
         &self.lines
+    }
+
+    pub fn clear(&mut self) {
+        self.lines = empty_lines();
+
+        self.cursor_row = 0;
+        self.cursor_col = 0;
+        self.scroll_offset = 0;
     }
 
     fn insert_char(&mut self, char: char) -> bool {

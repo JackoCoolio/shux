@@ -102,6 +102,8 @@ impl App {
                 PromptEvent::Enter(cmd) => {
                     self.jobs.push(cmd);
 
+                    self.prompt.clear();
+
                     continue;
                 }
                 PromptEvent::Bubble(event) => event,
