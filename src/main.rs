@@ -37,8 +37,33 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Clone, Copy)]
+struct Dimensions {
+    rows: usize,
+    columns: usize,
+}
+
 struct Job {
     command: String,
+    dimensions: Option<Dimensions>,
+}
+
+impl Job {
+    pub fn set_dimensions(&mut self, dimensions: Dimensions) {
+        if self
+            .dimensions
+            .is_some_and(|current_dimensions| current_dimensions == dimensions)
+        {
+            // same dimensions as previous; no need to notify pty
+            return;
+        }
+
+        self.dimensions = Some(dimensions);
+    }
+
+    pub fn reset_dimensions(&mut self) {
+        self.dimensions = None;
+    }
 }
 
 struct App {
@@ -59,7 +84,8 @@ impl App {
             .direction(ratatui::layout::Direction::Vertical)
             .constraints(self.jobs.iter().map(|_job| Constraint::Fill(1)))
             .split(jobs_area);
-        for (i, (Job { command }, job_area)) in self.jobs.iter().zip(jobs_areas.iter()).enumerate()
+        for (i, (Job { command, .. }, job_area)) in
+            self.jobs.iter().zip(jobs_areas.iter()).enumerate()
         {
             let block = Block::bordered()
                 .border_type(ratatui::widgets::BorderType::Rounded)
@@ -108,7 +134,10 @@ impl App {
 
             let event = match event {
                 PromptEvent::Enter(command) => {
-                    self.jobs.push(Job { command });
+                    self.jobs.push(Job {
+                        command,
+                        dimensions: None,
+                    });
 
                     self.prompt.clear();
 
