@@ -1,11 +1,26 @@
 #![allow(unused_imports)]
 
-use std::{error::Error, io};
+use std::{
+    error::Error,
+    fs::File,
+    io::{self, Read},
+    os::{
+        fd::{AsRawFd, OwnedFd},
+        unix::process::CommandExt,
+    },
+    process::Command,
+    sync::mpsc::{self, Receiver},
+};
 
+use crossbeam::queue::ArrayQueue;
 use crossterm::event::{
     self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseEvent, MouseEventKind,
 };
 use handler::{HandleEvent, HandleEventResult};
+use nix::{
+    errno::Errno,
+    pty::{openpty, OpenptyResult},
+};
 use prompt::{Prompt, PromptEvent};
 use ratatui::{
     layout::{Constraint, Layout, Position, Rect},
@@ -43,9 +58,17 @@ struct Dimensions {
     columns: u16,
 }
 
+struct PtyOutput {
+    bytes: [u8; 255],
+    size: u8,
+}
+
 struct Job {
     command: String,
     dimensions: Option<Dimensions>,
+    stdout: Receiver<PtyOutput>,
+    child_id: u32,
+    output: Vec<u8>,
 }
 
 impl Job {
@@ -133,6 +156,72 @@ impl App {
         frame.set_cursor_position(cursor_pos);
     }
 
+    fn start_job(&mut self, command: String) -> Result<&Job, Errno> {
+        let OpenptyResult { slave, master } = openpty(None, None)?;
+
+        let slave = slave.as_raw_fd();
+
+        let mut child = unsafe {
+            Command::new(command.clone())
+                .pre_exec(move || {
+                    if nix::libc::login_tty(slave) != 0 {
+                        return Err(io::Error::last_os_error());
+                    }
+                    close_fds();
+
+                    Ok(())
+                })
+                .spawn()
+                .unwrap_or_else(|err| panic!("unable to spawn command: error {err}"))
+        };
+
+        let child_id = child.id();
+
+        std::thread::spawn(move || {
+            child.wait().unwrap();
+            let _ = nix::unistd::close(slave);
+        });
+
+        let (sender, receiver) = mpsc::channel();
+
+        std::thread::spawn(move || {
+            let mut file = File::from(master);
+
+            loop {
+                let mut buf = [0; 255];
+
+                let n = match file.read(&mut buf) {
+                    Err(err) => {
+                        continue;
+                        if let Some(raw_os_err) = err.raw_os_error() {
+                            let raw_os_err = Errno::from_raw(raw_os_err);
+                            panic!("fatal error on read pty: {raw_os_err}");
+                        } else {
+                            panic!("other fatal error on read pty: {err}");
+                        }
+                    }
+                    Ok(n) => n,
+                };
+
+                sender
+                    .send(PtyOutput {
+                        bytes: buf,
+                        size: n as u8,
+                    })
+                    .unwrap();
+            }
+        });
+
+        self.jobs.push(Job {
+            command,
+            dimensions: None,
+            child_id,
+            stdout: receiver,
+        });
+
+        Ok(self.jobs.last().unwrap())
+    }
+
     pub fn run(&mut self, mut terminal: DefaultTerminal) -> io::Result<()> {
         loop {
             // draw the current state
@@ -148,10 +237,7 @@ impl App {
 
             let event = match event {
                 PromptEvent::Enter(command) => {
-                    self.jobs.push(Job {
-                        command,
-                        dimensions: None,
-                    });
+                    self.start_job(command);
 
                     self.prompt.clear();
 
@@ -168,5 +254,13 @@ impl App {
                 if key.kind == KeyEventKind::Press && key.code == KeyCode::Enter {}
             }
         }
+    }
+}
+
+unsafe fn close_fds() {
+    if cfg!(any(target_os = "macos", target_os = "ios")) {
+        close_fds::set_fds_cloexec(3, &[])
+    } else {
+        close_fds::close_open_fds(3, &[])
     }
 }
