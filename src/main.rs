@@ -39,8 +39,8 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Clone, Copy)]
 struct Dimensions {
-    rows: usize,
-    columns: usize,
+    rows: u16,
+    columns: u16,
 }
 
 struct Job {
@@ -72,7 +72,7 @@ struct App {
 }
 
 impl App {
-    fn draw(&self, frame: &mut Frame) {
+    fn draw(&mut self, frame: &mut Frame) {
         let layout = Layout::default()
             .direction(ratatui::layout::Direction::Vertical)
             .constraints([Constraint::Fill(1), Constraint::Length(3)])
@@ -84,22 +84,35 @@ impl App {
             .direction(ratatui::layout::Direction::Vertical)
             .constraints(self.jobs.iter().map(|_job| Constraint::Fill(1)))
             .split(jobs_area);
-        for (i, (Job { command, .. }, job_area)) in
-            self.jobs.iter().zip(jobs_areas.iter()).enumerate()
-        {
+        for (i, (job, job_area)) in self.jobs.iter_mut().zip(jobs_areas.iter()).enumerate() {
             let block = Block::bordered()
                 .border_type(ratatui::widgets::BorderType::Rounded)
-                .title(Title::from(format!(
-                    "JOB {i}: '{}'",
-                    command.as_str().italic()
-                )))
-                .title_alignment(ratatui::layout::Alignment::Left);
+                .title(
+                    Title::from(format!("JOB {i}: '{}'", job.command.as_str().italic()))
+                        .alignment(ratatui::layout::Alignment::Left),
+                );
 
             let inner_area = block.inner(*job_area);
-            frame.render_widget(block, *job_area);
 
-            let line = Paragraph::new(Text::from(Span::from(command)));
-            frame.render_widget(line, inner_area);
+            let block = {
+                let dimensions = Dimensions {
+                    rows: inner_area.height,
+                    columns: inner_area.width,
+                };
+
+                job.set_dimensions(dimensions);
+
+                block.title(
+                    Title::from(
+                        format!("{}x{}", dimensions.rows, dimensions.columns)
+                            .italic()
+                            .dim(),
+                    )
+                    .alignment(ratatui::layout::Alignment::Right),
+                )
+            };
+
+            frame.render_widget(block, *job_area);
         }
 
         let input_area = layout[1];
