@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
 use bon::{bon, builder};
 use crossterm::event::{Event, KeyEventKind};
@@ -58,6 +58,12 @@ impl Deref for Prompt {
 
     fn deref(&self) -> &Self::Target {
         &self.text_area
+    }
+}
+
+impl DerefMut for Prompt {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.text_area
     }
 }
 
