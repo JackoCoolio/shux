@@ -61,6 +61,7 @@ impl Job {
         self.dimensions = Some(dimensions);
     }
 
+    #[expect(dead_code)]
     pub fn reset_dimensions(&mut self) {
         self.dimensions = None;
     }
