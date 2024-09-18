@@ -27,7 +27,7 @@
           rustToolchainFile = (pkgs.lib.importTOML ./rust-toolchain.toml).toolchain;
           rustToolchain = (inputs'.fenix.packages.fromToolchainName {
             name = rustToolchainFile.channel;
-            sha256 = "sha256-3jVIIf5XPnUU1CRaTyAiO0XHVbJl12MSx3eucTXCjtE=";
+            sha256 = "sha256-VZZnlyP69+Y3crrLHQyJirqlHrTtGTsyiSnZB8jEvVo=";
           });
           rust = rustToolchain.toolchain;
           rustPlatform = pkgs.makeRustPlatform {
